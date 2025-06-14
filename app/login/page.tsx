@@ -1,30 +1,50 @@
 "use client";
 
-import { signIn, useSession } from "next-auth/react";
-
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { User } from "@supabase/supabase-js";
 import Image from "next/image";
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { status } = useSession();
+  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  useEffect(() => {
+    let ignore = false;
+    const getUser = async () => {
+      setIsAuthLoading(true);
+      const { data } = await supabase.auth.getUser();
+      if (!ignore) {
+        setSupabaseUser(data.user ?? null);
+        setIsAuthLoading(false);
+      }
+    };
+    getUser();
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSupabaseUser(session?.user ?? null);
+        if (session?.user) {
+          router.push("/");
+        }
+      }
+    );
+    return () => {
+      ignore = true;
+      listener?.subscription.unsubscribe();
+    };
+  }, [router]);
 
   // If already logged in, redirect to home
   useEffect(() => {
-    if (status === "authenticated") {
+    if (supabaseUser) {
       router.push("/");
     }
-  }, [status, router]);
-
-  const handleGoogleSignIn = () => {
-    signIn("google", {
-      callbackUrl: "/",
-    });
-  };
+  }, [supabaseUser, router]);
 
   // Show loading state while checking session
-  if (status === "loading") {
+  if (isAuthLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -49,7 +69,9 @@ export default function LoginPage() {
 
         <div className="mt-8">
           <button
-            onClick={handleGoogleSignIn}
+            onClick={async () => {
+              await supabase.auth.signInWithOAuth({ provider: "google" });
+            }}
             type="button"
             className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >

@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 
+import { User } from "@supabase/supabase-js";
 import { createDress } from "@/lib/database";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 
 const dressTypes = ["Casual", "Semi-Formal", "Work", "Party", "Formal"];
 const sizes = ["XS", "S", "M", "L", "XL"];
@@ -44,7 +44,6 @@ const commonLocations = [
 
 export default function NewDressPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -59,17 +58,37 @@ export default function NewDressPage() {
     pickupLocation: "",
     customPickupLocation: "",
   });
-
   const [showColorDropdown, setShowColorDropdown] = useState(false);
+  // Supabase Auth state
+  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-  // Redirect if not authenticated
-  if (status === "unauthenticated") {
-    router.push("/auth/signin");
-    return null;
-  }
+  // Check Supabase Auth session on mount
+  useEffect(() => {
+    let ignore = false;
+    const getUser = async () => {
+      setIsAuthLoading(true);
+      const { data } = await supabase.auth.getUser();
+      if (!ignore) {
+        setSupabaseUser(data.user ?? null);
+        setIsAuthLoading(false);
+      }
+    };
+    getUser();
+    // Listen for auth state changes
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSupabaseUser(session?.user ?? null);
+      }
+    );
+    return () => {
+      ignore = true;
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
 
-  // Show loading state while checking authentication
-  if (status === "loading") {
+  // Redirect or show login if not authenticated
+  if (isAuthLoading) {
     return (
       <div className="max-w-2xl mx-auto p-8">
         <div className="animate-pulse space-y-4">
@@ -79,18 +98,26 @@ export default function NewDressPage() {
       </div>
     );
   }
-
-  // Sync NextAuth session to Supabase Auth for storage RLS
-  useEffect(() => {
-    // Try common access token locations
-    const accessToken = session?.accessToken || session?.user?.access_token;
-    if (accessToken) {
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: accessToken, // Use access token as refresh if no refresh token is available
-      });
-    }
-  }, [session]);
+  if (!supabaseUser) {
+    return (
+      <div className="max-w-2xl mx-auto p-8 text-center">
+        <h2 className="text-2xl font-bold mb-4">Sign in to list a dress</h2>
+        <button
+          className="btn-primary"
+          onClick={async () => {
+            await supabase.auth.signInWithOAuth({ provider: "google" });
+          }}
+        >
+          <img
+            src="/google.svg"
+            alt="Google"
+            className="inline-block w-5 h-5 mr-2 align-middle"
+          />
+          Sign in with Google
+        </button>
+      </div>
+    );
+  }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -175,11 +202,10 @@ export default function NewDressPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!session?.user?.id) {
+    if (!supabaseUser?.id) {
       toast.error("You must be logged in to list a dress");
       return;
     }
-
     try {
       setIsSubmitting(true);
 
@@ -197,9 +223,22 @@ export default function NewDressPage() {
       // Upload image first
       const imageUrl = await uploadImage(formData.image);
 
+      // Ensure Supabase Auth is synced
+      const { data: supaUserData } = await supabase.auth.getUser();
+      console.log("Supabase user after setSession:", supaUserData);
+      const userId = supaUserData?.user?.id;
+      if (!userId) {
+        toast.error(
+          "You are not authenticated with Supabase. Please log out and log in again."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+      console.log("Supabase user data:", userId);
+
       // Prepare dress data
       const dressData = {
-        owner_id: session.user.id, // changed from user_id to owner_id
+        owner_id: supabaseUser.id, // use the Supabase UUID
         title: formData.title,
         types: formData.types,
         colors: formData.colors.includes("Other")

@@ -1,10 +1,10 @@
 "use client";
 
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
-import { signOut, useSession } from "next-auth/react";
-
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { User } from "@supabase/supabase-js";
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -14,12 +14,37 @@ const navigation = [
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { data: session, status } = useSession();
-  const isLoggedIn = status === "authenticated";
+  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-  const handleSignOut = () => {
-    signOut({ callbackUrl: "/" });
+  useEffect(() => {
+    let ignore = false;
+    const getUser = async () => {
+      setIsAuthLoading(true);
+      const { data } = await supabase.auth.getUser();
+      if (!ignore) {
+        setSupabaseUser(data.user ?? null);
+        setIsAuthLoading(false);
+      }
+    };
+    getUser();
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSupabaseUser(session?.user ?? null);
+      }
+    );
+    return () => {
+      ignore = true;
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setSupabaseUser(null);
   };
+
+  const isLoggedIn = !!supabaseUser;
 
   return (
     <nav className="bg-white shadow-sm">
@@ -59,12 +84,14 @@ export default function Navbar() {
                   </button>
                 </div>
               ) : (
-                <Link
-                  href="/login"
+                <button
+                  onClick={async () => {
+                    await supabase.auth.signInWithOAuth({ provider: "google" });
+                  }}
                   className="text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Login
-                </Link>
+                </button>
               )}
             </div>
           </div>
@@ -120,13 +147,15 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
-              <Link
-                href="/login"
-                className="block text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-base font-medium"
-                onClick={() => setMobileMenuOpen(false)}
+              <button
+                onClick={async () => {
+                  await supabase.auth.signInWithOAuth({ provider: "google" });
+                  setMobileMenuOpen(false);
+                }}
+                className="block w-full text-left text-gray-700 hover:text-primary-600 px-3 py-2 rounded-md text-base font-medium"
               >
                 Login
-              </Link>
+              </button>
             )}
           </div>
         </div>

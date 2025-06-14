@@ -1,21 +1,46 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
+import { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    let ignore = false;
+    const getUser = async () => {
+      setIsAuthLoading(true);
+      const { data } = await supabase.auth.getUser();
+      if (!ignore) {
+        setSupabaseUser(data.user ?? null);
+        setIsAuthLoading(false);
+      }
+    };
+    getUser();
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSupabaseUser(session?.user ?? null);
+      }
+    );
+    return () => {
+      ignore = true;
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (!isAuthLoading && !supabaseUser) {
       router.push("/login");
     }
-  }, [status, router]);
+  }, [isAuthLoading, supabaseUser, router]);
 
-  if (status === "loading") {
+  if (isAuthLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -26,7 +51,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!session?.user) {
+  if (!supabaseUser) {
     return null; // Will redirect in useEffect
   }
 
@@ -36,18 +61,18 @@ export default function ProfilePage() {
         {/* Profile Header */}
         <div className="bg-white shadow rounded-lg p-6 mb-8">
           <div className="flex items-center space-x-4">
-            {session.user.image && (
+            {supabaseUser.user_metadata?.avatar_url && (
               <img
-                src={session.user.image}
-                alt={session.user.name || "Profile picture"}
+                src={supabaseUser.user_metadata.avatar_url}
+                alt={supabaseUser.user_metadata.full_name || "Profile picture"}
                 className="h-20 w-20 rounded-full"
               />
             )}
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {session.user.name}
+                {supabaseUser.user_metadata?.full_name || supabaseUser.email}
               </h1>
-              <p className="text-gray-600">{session.user.email}</p>
+              <p className="text-gray-600">{supabaseUser.email}</p>
             </div>
           </div>
         </div>
