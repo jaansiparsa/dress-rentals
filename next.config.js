@@ -2,8 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['images.unsplash.com'], // Add any other image domains you'll use
+    domains: [
+      'images.unsplash.com',
+      'ggpevhcskkaytececkbp.supabase.co', // Supabase storage domain
+    ],
   },
 }
 
-module.exports = nextConfig 
+module.exports = nextConfig

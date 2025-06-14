@@ -1,104 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import Image from "next/image";
 import Link from "next/link";
-import { StarIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
-
-interface Dress {
-  id: number;
-  title: string;
-  type: string;
-  size: string;
-  color: string;
-  price: number;
-  image: string;
-  available: boolean;
-  rating: number;
-  reviews: number;
-}
-
-// Update mock data to include rating and reviews
-const dresses: Dress[] = [
-  {
-    id: 1,
-    title: "Elegant Black Evening Gown",
-    type: "Formal",
-    size: "M",
-    color: "Black",
-    price: 50,
-    image:
-      "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=500&auto=format&fit=crop&q=60",
-    available: true,
-    rating: 4.8,
-    reviews: 24,
-  },
-  {
-    id: 2,
-    title: "Floral Summer Dress",
-    type: "Casual",
-    size: "S",
-    color: "Blue",
-    price: 30,
-    image:
-      "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=500&auto=format&fit=crop&q=60",
-    available: true,
-    rating: 4.5,
-    reviews: 18,
-  },
-  {
-    id: 3,
-    title: "Classic Red Cocktail Dress",
-    type: "Semi-Formal",
-    size: "L",
-    color: "Red",
-    price: 40,
-    image:
-      "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=500&auto=format&fit=crop&q=60",
-    available: false,
-    rating: 4.9,
-    reviews: 32,
-  },
-  {
-    id: 4,
-    title: "Professional Navy Dress",
-    type: "Work",
-    size: "M",
-    color: "Navy",
-    price: 35,
-    image:
-      "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=500&auto=format&fit=crop&q=60",
-    available: true,
-    rating: 4.7,
-    reviews: 15,
-  },
-  {
-    id: 5,
-    title: "Sparkly Party Dress",
-    type: "Party",
-    size: "S",
-    color: "Silver",
-    price: 45,
-    image:
-      "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=500&auto=format&fit=crop&q=60",
-    available: true,
-    rating: 4.6,
-    reviews: 21,
-  },
-  {
-    id: 6,
-    title: "Designer Green Party Dress",
-    type: "Party",
-    size: "L",
-    color: "Green",
-    price: 55,
-    image:
-      "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=500&auto=format&fit=crop&q=60",
-    available: true,
-    rating: 4.9,
-    reviews: 28,
-  },
-];
+import { getDresses } from "@/lib/database";
 
 const dressTypes = ["Casual", "Semi-Formal", "Work", "Party", "Formal"];
 const sizes = ["XS", "S", "M", "L", "XL"];
@@ -127,6 +33,24 @@ export default function DressesPage() {
     colors: [],
     maxPrice: 200,
   });
+  const [dresses, setDresses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch dresses from Supabase
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    getDresses({
+      types: filters.types.length ? filters.types : undefined,
+      sizes: filters.sizes.length ? filters.sizes : undefined,
+      colors: filters.colors.length ? filters.colors : undefined,
+      maxPrice: filters.maxPrice,
+    })
+      .then((data) => setDresses(data || []))
+      .catch((err) => setError(err.message || "Failed to load dresses"))
+      .finally(() => setLoading(false));
+  }, [filters]);
 
   const toggleFilter = (
     category: keyof Omit<FilterState, "maxPrice">,
@@ -140,16 +64,20 @@ export default function DressesPage() {
     }));
   };
 
-  const filteredDresses = dresses.filter((dress) => {
-    const typeMatch =
-      filters.types.length === 0 || filters.types.includes(dress.type);
-    const sizeMatch =
-      filters.sizes.length === 0 || filters.sizes.includes(dress.size);
-    const colorMatch =
-      filters.colors.length === 0 || filters.colors.includes(dress.color);
-    const priceMatch = dress.price <= filters.maxPrice;
-    return typeMatch && sizeMatch && colorMatch && priceMatch;
-  });
+  // Remove this local filtering, since getDresses already applies filters on the server
+  // const filteredDresses = dresses.filter((dress) => {
+  //   const typeMatch =
+  //     filters.types.length === 0 || filters.types.includes(dress.type);
+  //   const sizeMatch =
+  //     filters.sizes.length === 0 || filters.sizes.includes(dress.size);
+  //   const colorMatch =
+  //     filters.colors.length === 0 || filters.colors.includes(dress.color);
+  //   const priceMatch = dress.price <= filters.maxPrice;
+  //   return typeMatch && sizeMatch && colorMatch && priceMatch;
+  // });
+
+  // Use dresses directly, since they're already filtered from Supabase
+  const filteredDresses = dresses;
 
   return (
     <div className="flex gap-8">
@@ -270,7 +198,7 @@ export default function DressesPage() {
               <div className="bg-white rounded-lg shadow-sm overflow-hidden transition-transform duration-200 group-hover:shadow-md">
                 <div className="relative h-64">
                   <Image
-                    src={dress.image}
+                    src={dress.image_url}
                     alt={dress.title}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-200"
@@ -281,23 +209,30 @@ export default function DressesPage() {
                     {dress.title}
                   </h3>
                   <div className="flex flex-wrap gap-2 mb-3">
-                    <span className="px-2 py-1 bg-primary-100 text-primary-700 text-sm rounded-full">
-                      {dress.type}
-                    </span>
+                    {Array.isArray(dress.types) &&
+                      dress.types.map((type: string) => (
+                        <span
+                          key={type}
+                          className="px-2 py-1 bg-primary-100 text-primary-700 text-sm rounded-full"
+                        >
+                          {type}
+                        </span>
+                      ))}
                     <span className="px-2 py-1 bg-primary-100 text-primary-700 text-sm rounded-full">
                       Size {dress.size}
                     </span>
-                    <span className="px-2 py-1 bg-primary-100 text-primary-700 text-sm rounded-full">
-                      {dress.color}
-                    </span>
+                    {Array.isArray(dress.colors) &&
+                      dress.colors.map((color: string) => (
+                        <span
+                          key={color}
+                          className="px-2 py-1 bg-primary-50 text-primary-600 text-sm rounded-full"
+                        >
+                          {color}
+                        </span>
+                      ))}
                   </div>
                   <div className="flex justify-between items-center">
                     <p className="text-lg font-bold">${dress.price}/day</p>
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <StarIcon className="h-4 w-4 text-yellow-400" />
-                      <span>{dress.rating}</span>
-                      <span>({dress.reviews})</span>
-                    </div>
                   </div>
                 </div>
               </div>
