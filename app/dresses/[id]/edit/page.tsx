@@ -4,6 +4,7 @@ import { User } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { toast } from "react-hot-toast";
 
 const dressTypes = ["Casual", "Semi-Formal", "Work", "Party", "Formal"];
 const sizes = ["XS", "S", "M", "L", "XL"];
@@ -238,6 +239,21 @@ export default function EditDressPage() {
     router.push("/profile");
   };
 
+  const handleDelete = async () => {
+    if (!dressId) return;
+    if (!window.confirm("Are you sure you want to delete this listing? This action cannot be undone.")) return;
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from("dresses").delete().eq("id", dressId);
+      if (error) throw error;
+      toast.success("Dress listing deleted.");
+      router.push("/profile");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete dress.");
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -383,9 +399,17 @@ export default function EditDressPage() {
           </div>
         </div>
         {/* Submit Button */}
-        <div className="flex justify-end space-x-4">
+        <div className="flex justify-between space-x-4 mt-8">
           <button type="button" onClick={() => router.back()} className="btn-secondary" disabled={isSubmitting}>Cancel</button>
           <button type="submit" className="btn-primary" disabled={isSubmitting || formData.types.length === 0 || formData.colors.length === 0}>{isSubmitting ? "Saving..." : "Save Changes"}</button>
+          <button
+            type="button"
+            className="btn-danger"
+            onClick={handleDelete}
+            disabled={isSubmitting}
+          >
+            Delete Listing
+          </button>
         </div>
         {error && <p className="text-red-600 mt-2">{error}</p>}
       </form>
