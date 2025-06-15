@@ -53,8 +53,8 @@ export default function NewDressPage() {
     size: sizes[0],
     price: "",
     description: "",
-    image: null as File | null,
-    imagePreview: "",
+    images: [] as File[],
+    imagePreviews: [] as string[],
     pickupLocation: "",
     customPickupLocation: "",
   });
@@ -120,12 +120,16 @@ export default function NewDressPage() {
   }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const fileArr = Array.from(files);
       setFormData((prev) => ({
         ...prev,
-        image: file,
-        imagePreview: URL.createObjectURL(file),
+        images: [...(prev.images || []), ...fileArr],
+        imagePreviews: [
+          ...(prev.imagePreviews || []),
+          ...fileArr.map((file) => URL.createObjectURL(file)),
+        ],
       }));
     }
   };
@@ -216,12 +220,16 @@ export default function NewDressPage() {
       if (formData.colors.length === 0) {
         throw new Error("Please select at least one color");
       }
-      if (!formData.image) {
-        throw new Error("Please upload an image");
+      if (!formData.images || formData.images.length === 0) {
+        throw new Error("Please upload at least one image");
       }
 
-      // Upload image first
-      const imageUrl = await uploadImage(formData.image);
+      // Upload all images
+      const imageUrls: string[] = [];
+      for (const file of formData.images) {
+        const url = await uploadImage(file);
+        imageUrls.push(url);
+      }
 
       // Ensure Supabase Auth is synced
       const { data: supaUserData } = await supabase.auth.getUser();
@@ -250,7 +258,7 @@ export default function NewDressPage() {
         size: formData.size,
         price: parseFloat(formData.price),
         description: formData.description,
-        image_url: imageUrl,
+        image_url: imageUrls, // store as array
         pickup_location:
           formData.pickupLocation === "Other (specify below)"
             ? formData.customPickupLocation
@@ -548,70 +556,61 @@ export default function NewDressPage() {
         {/* Image Upload */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Dress Image
+            Dress Images
           </label>
-          <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-            <div className="space-y-1 text-center">
-              {formData.imagePreview ? (
-                <div className="relative h-48 w-full mb-4">
-                  <img
-                    src={formData.imagePreview}
-                    alt="Preview"
-                    className="h-full w-full object-cover rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        image: null,
-                        imagePreview: "",
-                      }))
-                    }
-                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <svg
-                    className="mx-auto h-12 w-12 text-gray-400"
-                    stroke="currentColor"
-                    fill="none"
-                    viewBox="0 0 48 48"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <div className="flex text-sm text-gray-600">
-                    <label
-                      htmlFor="image-upload"
-                      className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
-                    >
-                      <span>Upload a file</span>
-                      <input
-                        id="image-upload"
-                        name="image"
-                        type="file"
-                        accept="image/*"
-                        className="sr-only"
-                        onChange={handleImageChange}
-                        required
+          <div className="mt-1 flex flex-col items-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+            <div className="space-y-1 text-center w-full">
+              {formData.imagePreviews.length > 0 ? (
+                <div className="flex flex-wrap gap-4 justify-center mb-4">
+                  {formData.imagePreviews.map((preview, idx) => (
+                    <div key={idx} className="relative h-32 w-32">
+                      <img
+                        src={preview}
+                        alt={`Preview ${idx + 1}`}
+                        className="h-full w-full object-cover rounded-lg"
                       />
-                    </label>
-                    <p className="pl-1">or drag and drop</p>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    PNG, JPG, GIF up to 10MB
-                  </p>
-                </>
-              )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => {
+                            const newImages = prev.images.filter((_, i) => i !== idx);
+                            const newPreviews = prev.imagePreviews.filter((_, i) => i !== idx);
+                            return {
+                              ...prev,
+                              images: newImages,
+                              imagePreviews: newPreviews,
+                            };
+                          });
+                        }}
+                        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <div className="flex text-sm text-gray-600 justify-center">
+                <label
+                  htmlFor="image-upload"
+                  className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
+                >
+                  <span>Upload files</span>
+                  <input
+                    id="image-upload"
+                    name="image"
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={handleImageChange}
+                    multiple
+                  />
+                </label>
+                <p className="pl-1">or drag and drop</p>
+              </div>
+              <p className="text-xs text-gray-500">
+                PNG, JPG, GIF up to 10MB each. You can upload multiple images.
+              </p>
             </div>
           </div>
         </div>
@@ -633,7 +632,7 @@ export default function NewDressPage() {
               isSubmitting ||
               formData.types.length === 0 ||
               formData.colors.length === 0 ||
-              !formData.image
+              !formData.images.length
             }
           >
             {isSubmitting ? "Listing Dress..." : "List Dress"}

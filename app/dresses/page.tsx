@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getDresses } from "@/lib/database";
+import { supabase } from "@/lib/supabase";
 
 const dressTypes = ["Casual", "Semi-Formal", "Work", "Party", "Formal"];
 const sizes = ["XS", "S", "M", "L", "XL"];
@@ -188,57 +189,15 @@ export default function DressesPage() {
         </p>
 
         {/* Dress Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredDresses.map((dress) => (
-            <Link
-              key={dress.id}
-              href={`/dresses/${dress.id}`}
-              className="group"
-            >
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden transition-transform duration-200 group-hover:shadow-md">
-                <div className="relative h-64">
-                  <Image
-                    src={dress.image_url}
-                    alt={dress.title}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-200"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg mb-2 group-hover:text-primary-600 transition-colors">
-                    {dress.title}
-                  </h3>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {Array.isArray(dress.types) &&
-                      dress.types.map((type: string) => (
-                        <span
-                          key={type}
-                          className="px-2 py-1 bg-primary-100 text-primary-700 text-sm rounded-full"
-                        >
-                          {type}
-                        </span>
-                      ))}
-                    <span className="px-2 py-1 bg-primary-100 text-primary-700 text-sm rounded-full">
-                      Size {dress.size}
-                    </span>
-                    {Array.isArray(dress.colors) &&
-                      dress.colors.map((color: string) => (
-                        <span
-                          key={color}
-                          className="px-2 py-1 bg-primary-50 text-primary-600 text-sm rounded-full"
-                        >
-                          {color}
-                        </span>
-                      ))}
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <p className="text-lg font-bold">${dress.price}/day</p>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        {dresses.length === 0 ? (
+          <div className="text-center text-gray-500 py-12">No dresses found.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {dresses.map((dress) => (
+              <DressCard key={dress.id} dress={dress} />
+            ))}
+          </div>
+        )}
 
         {/* No Results Message */}
         {filteredDresses.length === 0 && (
@@ -249,6 +208,95 @@ export default function DressesPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// DressCard component
+function DressCard({ dress }: { dress: any }) {
+  const [owner, setOwner] = useState<any>(null);
+  useEffect(() => {
+    async function fetchOwner() {
+      if (dress.owner_id) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("full_name, avatar_url")
+          .eq("id", dress.owner_id)
+          .maybeSingle();
+        if (!error && data) setOwner(data);
+      }
+    }
+    fetchOwner();
+  }, [dress.owner_id]);
+
+  // Always use the first image in image_url array for the card image
+  let imageSrc = "";
+  if (Array.isArray(dress.image_url) && dress.image_url.length > 0) {
+    imageSrc = dress.image_url[0];
+  } else if (typeof dress.image_url === "string" && dress.image_url) {
+    imageSrc = dress.image_url;
+  } else {
+    imageSrc = "/placeholder-dress.png";
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow p-4 flex flex-col">
+      <div className="relative h-56 w-full mb-4">
+        <Image
+          src={imageSrc}
+          alt={dress.title}
+          fill
+          className="object-cover rounded-lg"
+        />
+      </div>
+      <h3 className="text-xl font-bold mb-1">{dress.title}</h3>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {Array.isArray(dress.types) &&
+          dress.types.map((type: string) => (
+            <span
+              key={type}
+              className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-full"
+            >
+              {type}
+            </span>
+          ))}
+        <span className="px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-full">
+          Size {dress.size}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {Array.isArray(dress.colors) &&
+          dress.colors.map((color: string) => (
+            <span
+              key={color}
+              className="px-2 py-1 bg-primary-50 text-primary-600 text-xs rounded-full"
+            >
+              {color}
+            </span>
+          ))}
+      </div>
+      <div className="text-lg font-bold text-primary-700 mb-2">
+        ${dress.price}/day
+      </div>
+      {/* Owner info */}
+      {owner && (
+        <div className="flex items-center gap-2 mt-2 mb-2">
+          {owner.avatar_url && (
+            <img
+              src={owner.avatar_url}
+              alt={owner.full_name || "Profile picture"}
+              className="h-8 w-8 rounded-full object-cover"
+            />
+          )}
+          <span className="text-sm text-gray-700">{owner.full_name}</span>
+        </div>
+      )}
+      <a
+        href={`/dresses/${dress.id}`}
+        className="mt-auto btn-primary block text-center"
+      >
+        View Details
+      </a>
     </div>
   );
 }

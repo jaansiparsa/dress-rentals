@@ -1,77 +1,46 @@
 "use client";
 
-import {
-  ClockIcon,
-  MapPinIcon,
-  StarIcon,
-  TagIcon,
-} from "@heroicons/react/24/outline";
+import { useEffect, useState } from "react";
 
-import { Calendar } from "@/components/Calendar";
 import Image from "next/image";
-import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
-import { useState } from "react";
+import { getDress } from "@/lib/database";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
-// Mock data - in a real app, this would come from an API
-const mockDress = {
-  id: 1,
-  title: "Elegant Black Evening Gown",
-  types: ["Formal", "Party"], // Now supports multiple types
-  size: "M",
-  color: "Black",
-  price: 50,
-  images: [
-    "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=500&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=500&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=500&auto=format&fit=crop&q=60",
-  ],
-  description:
-    "A stunning black evening gown perfect for formal events. Features a flattering A-line silhouette, sweetheart neckline, and elegant ruching details. Made from high-quality satin with a comfortable lining. Dry cleaned after each rental.",
-  brand: "Designer Collection",
-  condition: "Like New",
-  length: "Floor Length",
-  material: "Satin",
-  pickupLocation: "Moffitt Library", // Added pickup location
-  owner: {
-    name: "Sarah Johnson",
-    rating: 4.8,
-    reviews: 24,
-    location: "University Campus",
-    memberSince: "2023",
-    responseTime: "Within 2 hours",
-  },
-  availability: {
-    unavailableDates: [
-      "2024-03-15",
-      "2024-03-16",
-      "2024-03-17",
-      "2024-03-20",
-      "2024-03-21",
-    ],
-    minRentalDays: 1,
-    maxRentalDays: 7,
-  },
-  reviews: [
-    {
-      id: 1,
-      user: "Emily R.",
-      rating: 5,
-      date: "2024-02-15",
-      comment:
-        "Beautiful dress, perfect fit! The owner was very responsive and the dress was in excellent condition.",
-    },
-    {
-      id: 2,
-      user: "Jessica M.",
-      rating: 4,
-      date: "2024-01-30",
-      comment:
-        "Great dress for my formal event. The only reason for 4 stars is that it arrived a bit later than expected.",
-    },
-  ],
-};
+export default function DressDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const [dress, setDress] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [ownerProfile, setOwnerProfile] = useState<any>(null);
+  const router = useRouter();
 
-export default function DressDetailPage() {
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    getDress(params.id)
+      .then(async (data) => {
+        setDress(data);
+        // Fetch owner profile from public.profiles table instead of admin API
+        if (data?.owner_id) {
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("full_name, avatar_url, email")
+            .eq("id", data.owner_id)
+            .maybeSingle();
+          if (!profileError && profile) {
+            setOwnerProfile(profile);
+          }
+        }
+      })
+      .catch((err) => setError(err.message || "Failed to load dress"))
+      .finally(() => setLoading(false));
+  }, [params.id]);
+
+  // Move hooks to the top-level, before any early returns
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -81,266 +50,200 @@ export default function DressDetailPage() {
   };
 
   const calculateTotal = () => {
-    if (selectedDates.length < 2) return mockDress.price;
+    if (selectedDates.length < 2) return dress.price;
     const days = Math.ceil(
       (selectedDates[1].getTime() - selectedDates[0].getTime()) /
         (1000 * 60 * 60 * 24)
     );
-    return mockDress.price * days;
+    return dress.price * days;
   };
 
-  return (
-    <div className="max-w-7xl mx-auto">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Column - Images and Details */}
-        <div className="space-y-6">
-          {/* Main Image */}
-          <div className="relative h-[500px] rounded-lg overflow-hidden">
-            <Image
-              src={mockDress.images[selectedImage]}
-              alt={mockDress.title}
-              fill
-              className="object-cover"
-            />
-          </div>
-
-          {/* Thumbnail Images */}
-          <div className="flex gap-4">
-            {mockDress.images.map((image, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedImage(index)}
-                className={`relative h-20 w-20 rounded-lg overflow-hidden ${
-                  selectedImage === index ? "ring-2 ring-primary-500" : ""
-                }`}
-              >
-                <Image
-                  src={image}
-                  alt={`${mockDress.title} - View ${index + 1}`}
-                  fill
-                  className="object-cover"
-                />
-              </button>
-            ))}
-          </div>
-
-          {/* Dress Details */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h2 className="text-2xl font-bold mb-4">{mockDress.title}</h2>
-            <div className="space-y-4">
-              {/* Dress Types */}
-              <div>
-                <span className="text-gray-600 block mb-2">Dress Types</span>
-                <div className="flex flex-wrap gap-2">
-                  {mockDress.types.map((type) => (
-                    <span
-                      key={type}
-                      className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm"
-                    >
-                      {type}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Size and Color */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-gray-600 block mb-1">Size</span>
-                  <p className="font-medium">{mockDress.size}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600 block mb-1">Color</span>
-                  <p className="font-medium">{mockDress.color}</p>
-                </div>
-              </div>
-
-              {/* Pickup Location */}
-              <div>
-                <span className="text-gray-600 block mb-2">
-                  Pickup/Dropoff Location
-                </span>
-                <div className="flex items-center gap-2">
-                  <MapPinIcon className="h-4 w-4 text-gray-400" />
-                  <p className="font-medium">{mockDress.pickupLocation}</p>
-                </div>
-              </div>
-
-              {/* Price */}
-              <div>
-                <span className="text-gray-600 block mb-1">
-                  Daily Rental Price
-                </span>
-                <p className="text-2xl font-bold text-primary-600">
-                  ${mockDress.price}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h2 className="text-2xl font-bold mb-4">Description</h2>
-            <div className="space-y-4">
-              <p
-                className={`text-gray-600 ${
-                  !showFullDescription && "line-clamp-3"
-                }`}
-              >
-                {mockDress.description}
-              </p>
-              <button
-                onClick={() => setShowFullDescription(!showFullDescription)}
-                className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-              >
-                {showFullDescription ? "Show Less" : "Read More"}
-              </button>
-            </div>
-          </div>
-
-          {/* Reviews */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">Reviews</h2>
-              <div className="flex items-center gap-2">
-                <StarIconSolid className="h-5 w-5 text-yellow-400" />
-                <span className="font-medium">4.8</span>
-                <span className="text-gray-600">
-                  ({mockDress.reviews.length} reviews)
-                </span>
-              </div>
-            </div>
-            <div className="space-y-6">
-              {mockDress.reviews.map((review) => (
-                <div
-                  key={review.id}
-                  className="border-b border-gray-200 pb-6 last:border-0"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className="font-medium">{review.user}</p>
-                      <p className="text-sm text-gray-600">{review.date}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <StarIconSolid
-                          key={i}
-                          className={`h-4 w-4 ${
-                            i < review.rating
-                              ? "text-yellow-400"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-gray-600">{review.comment}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Booking */}
-        <div className="space-y-6">
-          {/* Owner Info */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <div className="flex items-start gap-4">
-              <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-600">
-                {mockDress.owner.name[0]}
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold text-lg">
-                      {mockDress.owner.name}
-                    </h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <MapPinIcon className="h-4 w-4" />
-                      <span>{mockDress.owner.location}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <StarIconSolid className="h-5 w-5 text-yellow-400" />
-                    <span className="font-medium">
-                      {mockDress.owner.rating}
-                    </span>
-                    <span className="text-gray-600">
-                      ({mockDress.owner.reviews} reviews)
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <ClockIcon className="h-4 w-4 text-gray-400" />
-                    <span>Member since {mockDress.owner.memberSince}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ClockIcon className="h-4 w-4 text-gray-400" />
-                    <span>Responds {mockDress.owner.responseTime}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Booking Calendar */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h2 className="text-2xl font-bold mb-4">Select Dates</h2>
-            <Calendar
-              unavailableDates={mockDress.availability.unavailableDates}
-              onDateSelect={handleDateSelect}
-              minRentalDays={mockDress.availability.minRentalDays}
-              maxRentalDays={mockDress.availability.maxRentalDays}
-            />
-          </div>
-
-          {/* Booking Summary */}
-          <div className="bg-white p-6 rounded-lg shadow-sm sticky bottom-6">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <p className="text-2xl font-bold">${mockDress.price}</p>
-                <p className="text-gray-600">per day</p>
-              </div>
-              {selectedDates.length === 2 && (
-                <div className="text-right">
-                  <p className="text-gray-600">
-                    Total for{" "}
-                    {Math.ceil(
-                      (selectedDates[1].getTime() -
-                        selectedDates[0].getTime()) /
-                        (1000 * 60 * 60 * 24)
-                    )}{" "}
-                    days
-                  </p>
-                  <p className="text-2xl font-bold">${calculateTotal()}</p>
-                </div>
-              )}
-            </div>
-            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <MapPinIcon className="h-4 w-4" />
-                <span>Pickup/Dropoff at {mockDress.pickupLocation}</span>
-              </div>
-            </div>
-            <button
-              className={`w-full btn-primary ${
-                selectedDates.length !== 2
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
-              disabled={selectedDates.length !== 2}
-            >
-              {selectedDates.length === 2
-                ? "Request to Rent"
-                : "Select Dates to Rent"}
-            </button>
-            <p className="text-sm text-gray-600 mt-2 text-center">
-              You won't be charged yet
-            </p>
-          </div>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dress...</p>
         </div>
       </div>
+    );
+  }
+
+  if (error || !dress) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 font-semibold">
+            {error || "Dress not found."}
+          </p>
+          <button onClick={() => router.back()} className="mt-4 btn-secondary">
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto py-8 px-4">
+      <div className="space-y-6">
+        {/* Main Image or Carousel */}
+        <div className="relative h-96 w-full rounded-lg overflow-hidden mb-4">
+          {Array.isArray(dress.image_url) && dress.image_url.length > 1 ? (
+            <>
+              <Image
+                src={dress.image_url[selectedImage]}
+                alt={dress.title}
+                fill
+                className="object-cover"
+                priority
+              />
+              {/* Carousel Controls */}
+              <button
+                type="button"
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/70 rounded-full p-2 shadow hover:bg-white"
+                onClick={() => setSelectedImage((prev) => (prev === 0 ? dress.image_url.length - 1 : prev - 1))}
+                aria-label="Previous image"
+              >
+                &#8592;
+              </button>
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/70 rounded-full p-2 shadow hover:bg-white"
+                onClick={() => setSelectedImage((prev) => (prev === dress.image_url.length - 1 ? 0 : prev + 1))}
+                aria-label="Next image"
+              >
+                &#8594;
+              </button>
+              {/* Thumbnails */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 bg-white/60 rounded px-2 py-1">
+                {dress.image_url.map((img: string, idx: number) => (
+                  <button
+                    key={img}
+                    type="button"
+                    className={`h-8 w-8 rounded overflow-hidden border-2 ${selectedImage === idx ? 'border-primary-600' : 'border-transparent'}`}
+                    onClick={() => setSelectedImage(idx)}
+                    aria-label={`Show image ${idx + 1}`}
+                  >
+                    <img src={img} alt="thumbnail" className="object-cover h-full w-full" />
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <Image
+              src={Array.isArray(dress.image_url) ? (dress.image_url[0] || '/placeholder.jpg') : (dress.image_url || '/placeholder.jpg')}
+              alt={dress.title}
+              fill
+              className="object-cover"
+              priority
+            />
+          )}
+        </div>
+        <h1 className="text-3xl font-bold text-primary-900 mb-2">
+          {dress.title}
+        </h1>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {Array.isArray(dress.types) &&
+            dress.types.map((type: string) => (
+              <span
+                key={type}
+                className="px-2 py-1 bg-primary-100 text-primary-700 text-sm rounded-full"
+              >
+                {type}
+              </span>
+            ))}
+          <span className="px-2 py-1 bg-primary-100 text-primary-700 text-sm rounded-full">
+            Size {dress.size}
+          </span>
+          {Array.isArray(dress.colors) &&
+            dress.colors.map((color: string) => (
+              <span
+                key={color}
+                className="px-2 py-1 bg-primary-50 text-primary-600 text-sm rounded-full"
+              >
+                {color}
+              </span>
+            ))}
+        </div>
+        <p className="text-lg font-bold text-primary-700 mb-2">
+          ${dress.price}/day
+        </p>
+        <div className="mb-2">
+          <span className="font-semibold">Pickup Location:</span>{" "}
+          {dress.pickup_location}
+          {dress.custom_pickup_location && (
+            <span> ({dress.custom_pickup_location})</span>
+          )}
+        </div>
+        <div className="mb-2">
+          <span className="font-semibold">Description:</span>
+          <p className="text-gray-700 mt-1">{dress.description}</p>
+        </div>
+        <div className="text-sm text-gray-500">
+          Listed on{" "}
+          {new Date(dress.created_at).toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+        </div>
+
+        {/* Owner Info */}
+        {ownerProfile && (
+          <div className="flex items-center gap-4 mb-4">
+            {ownerProfile.avatar_url && (
+              <img
+                src={ownerProfile.avatar_url}
+                alt={ownerProfile.full_name || "Profile picture"}
+                className="h-12 w-12 rounded-full"
+              />
+            )}
+            <div>
+              <div className="font-semibold text-primary-900">
+                {ownerProfile.full_name || ownerProfile.email}
+              </div>
+              <div className="text-sm text-gray-500">Owner</div>
+            </div>
+            {/* Edit button if current user is owner */}
+            <EditButton ownerId={dress.owner_id} dressId={dress.id} />
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+// Add this component at the bottom of the file (outside the main component):
+function EditButton({ ownerId, dressId }: { ownerId: string; dressId: string }) {
+  const [isOwner, setIsOwner] = useState<boolean>(false);
+  const [checked, setChecked] = useState(false);
+  const [debug, setDebug] = useState<{userId?: string, ownerId?: string}>();
+  const router = useRouter();
+  useEffect(() => {
+    let ignore = false;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!ignore) {
+        setIsOwner(data.user?.id === ownerId);
+        setChecked(true);
+        setDebug({ userId: data.user?.id, ownerId });
+      }
+    });
+    return () => { ignore = true; };
+  }, [ownerId]);
+  if (!checked) return null; // Only render after check
+  if (!isOwner) return (
+    <div style={{ fontSize: 10, color: '#888' }}>
+      {/* Debug info for troubleshooting */}
+      <pre>{JSON.stringify(debug, null, 2)}</pre>
+    </div>
+  );
+  return (
+    <button
+      className="ml-4 btn-secondary"
+      onClick={() => router.push(`/dresses/${dressId}/edit`)}
+    >
+      Edit Listing
+    </button>
   );
 }

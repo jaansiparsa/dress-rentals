@@ -19,15 +19,28 @@ export default function LoginPage() {
       if (!ignore) {
         setSupabaseUser(data.user ?? null);
         setIsAuthLoading(false);
+        // If user exists, check if profile exists
+        if (data.user) {
+          const { data: profileData, error: profileError } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("id", data.user.id)
+            .maybeSingle();
+          if (profileError) {
+            console.error("Profile check error:", profileError);
+          }
+          if (!profileData) {
+            // No profile, redirect to create-profile page
+            router.push("/create-profile");
+            return;
+          }
+        }
       }
     };
     getUser();
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         setSupabaseUser(session?.user ?? null);
-        if (session?.user) {
-          router.push("/");
-        }
       }
     );
     return () => {
@@ -36,10 +49,28 @@ export default function LoginPage() {
     };
   }, [router]);
 
-  // If already logged in, redirect to home
   useEffect(() => {
     if (supabaseUser) {
-      router.push("/");
+      (async () => {
+        alert("supabaseUser detected: " + JSON.stringify(supabaseUser));
+        try {
+          const { error, data } = await supabase.from("profiles").upsert({
+            id: supabaseUser.id,
+            full_name:
+              supabaseUser.user_metadata?.full_name || supabaseUser.email,
+            avatar_url: supabaseUser.user_metadata?.avatar_url || null,
+            email: supabaseUser.email,
+          });
+          if (error) {
+            alert("Profile upsert error: " + error.message);
+          } else {
+            alert("Profile upserted: " + JSON.stringify(data));
+          }
+        } catch (err) {
+          alert("Exception: " + err);
+        }
+        router.push("/");
+      })();
     }
   }, [supabaseUser, router]);
 

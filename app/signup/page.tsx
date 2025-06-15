@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -32,8 +33,45 @@ export default function SignupPage() {
       return;
     }
 
-    // TODO: Implement actual signup logic
-    console.log("Signup attempt with:", formData);
+    try {
+      // Sign up user with Supabase Auth
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: `${formData.firstName} ${formData.lastName}`,
+          },
+        },
+      });
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+      const user = data.user;
+      if (!user) {
+        setError("Signup failed. Please try again.");
+        return;
+      }
+      // Upsert profile into public.profiles table
+      const { error: profileError } = await supabase.from("profiles").upsert({
+        id: user.id,
+        full_name: `${formData.firstName} ${formData.lastName}`,
+        avatar_url: user.user_metadata?.avatar_url || null,
+        email: user.email,
+      });
+      if (profileError) {
+        setError(
+          "Signup succeeded, but failed to create profile: " +
+            profileError.message
+        );
+        return;
+      }
+      // Redirect to login or home
+      router.push("/login");
+    } catch (err: any) {
+      setError(err.message || "Signup failed");
+    }
   };
 
   return (
