@@ -118,7 +118,9 @@ export default function ProfilePage() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Listings</p>
-                <p className="text-gray-900">{listings.length} dresses listed</p>
+                <p className="text-gray-900">
+                  {listings.length} dresses listed
+                </p>
               </div>
               {/* You can add rentals count here if you track it */}
             </div>

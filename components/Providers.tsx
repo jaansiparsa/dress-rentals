@@ -4,7 +4,11 @@ import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
-export function ProfileCheckProvider({ children }: { children: React.ReactNode }) {
+export function ProfileCheckProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   useEffect(() => {
     let ignore = false;
@@ -19,7 +23,10 @@ export function ProfileCheckProvider({ children }: { children: React.ReactNode }
         if (profileError) {
           // Optionally log error
         }
-        if (!profileData && !window.location.pathname.startsWith("/create-profile")) {
+        if (
+          !profileData &&
+          !window.location.pathname.startsWith("/create-profile")
+        ) {
           router.replace("/create-profile");
         }
       }

@@ -103,7 +103,11 @@ export default function DressDetailPage({
                 <button
                   type="button"
                   className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/70 rounded-full p-2 shadow hover:bg-white"
-                  onClick={() => setSelectedImage((prev) => (prev === 0 ? dress.image_url.length - 1 : prev - 1))}
+                  onClick={() =>
+                    setSelectedImage((prev) =>
+                      prev === 0 ? dress.image_url.length - 1 : prev - 1
+                    )
+                  }
                   aria-label="Previous image"
                 >
                   &#8592;
@@ -111,7 +115,11 @@ export default function DressDetailPage({
                 <button
                   type="button"
                   className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/70 rounded-full p-2 shadow hover:bg-white"
-                  onClick={() => setSelectedImage((prev) => (prev === dress.image_url.length - 1 ? 0 : prev + 1))}
+                  onClick={() =>
+                    setSelectedImage((prev) =>
+                      prev === dress.image_url.length - 1 ? 0 : prev + 1
+                    )
+                  }
                   aria-label="Next image"
                 >
                   &#8594;
@@ -122,18 +130,30 @@ export default function DressDetailPage({
                     <button
                       key={img}
                       type="button"
-                      className={`h-8 w-8 rounded overflow-hidden border-2 ${selectedImage === idx ? 'border-primary-600' : 'border-transparent'}`}
+                      className={`h-8 w-8 rounded overflow-hidden border-2 ${
+                        selectedImage === idx
+                          ? "border-primary-600"
+                          : "border-transparent"
+                      }`}
                       onClick={() => setSelectedImage(idx)}
                       aria-label={`Show image ${idx + 1}`}
                     >
-                      <img src={img} alt="thumbnail" className="object-cover h-full w-full" />
+                      <img
+                        src={img}
+                        alt="thumbnail"
+                        className="object-cover h-full w-full"
+                      />
                     </button>
                   ))}
                 </div>
               </>
             ) : (
               <Image
-                src={Array.isArray(dress.image_url) ? (dress.image_url[0] || '/placeholder.jpg') : (dress.image_url || '/placeholder.jpg')}
+                src={
+                  Array.isArray(dress.image_url)
+                    ? dress.image_url[0] || "/placeholder.jpg"
+                    : dress.image_url || "/placeholder.jpg"
+                }
                 alt={dress.title}
                 fill
                 className="object-cover"
@@ -146,7 +166,7 @@ export default function DressDetailPage({
             {ownerProfile?.avatar_url && (
               <img
                 src={ownerProfile.avatar_url}
-                alt={ownerProfile.full_name || 'Profile picture'}
+                alt={ownerProfile.full_name || "Profile picture"}
                 className="h-10 w-10 rounded-full"
               />
             )}
@@ -161,13 +181,15 @@ export default function DressDetailPage({
           </div>
           <div className="mb-4">
             <span className="font-semibold">Description:</span>
-            <p className="text-gray-700 mt-1 whitespace-pre-line">{dress.description}</p>
+            <p className="text-gray-700 mt-1 whitespace-pre-line">
+              {dress.description}
+            </p>
             <div className="text-sm text-gray-500 mt-2">
-              Listed on{' '}
-              {new Date(dress.created_at).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
+              Listed on{" "}
+              {new Date(dress.created_at).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
               })}
             </div>
           </div>
@@ -175,7 +197,9 @@ export default function DressDetailPage({
         {/* Right: Details, Calendar */}
         <div className="flex-1 flex flex-col gap-6">
           <div>
-            <h1 className="text-3xl font-bold text-primary-900 mb-2">{dress.title}</h1>
+            <h1 className="text-3xl font-bold text-primary-900 mb-2">
+              {dress.title}
+            </h1>
             <div className="flex flex-wrap gap-2 mb-2">
               {Array.isArray(dress.types) &&
                 dress.types.map((type: string) => (
@@ -203,7 +227,7 @@ export default function DressDetailPage({
               ${dress.price}/day
             </p>
             <div className="mb-2">
-              <span className="font-semibold">Pickup Location:</span>{' '}
+              <span className="font-semibold">Pickup Location:</span>{" "}
               {dress.pickup_location}
               {dress.custom_pickup_location && (
                 <span> ({dress.custom_pickup_location})</span>
@@ -216,7 +240,9 @@ export default function DressDetailPage({
             {/* Replace Calendar below with your actual Calendar component if available */}
             <div className="bg-gray-50 rounded-lg p-4">
               {/* Example placeholder: */}
-              <div className="text-gray-400 italic">Calendar coming soon...</div>
+              <div className="text-gray-400 italic">
+                Calendar coming soon...
+              </div>
               {/* <Calendar ...props /> */}
             </div>
           </div>
@@ -227,7 +253,13 @@ export default function DressDetailPage({
 }
 
 // Add this component at the bottom of the file (outside the main component):
-function EditButton({ ownerId, dressId }: { ownerId: string; dressId: string }) {
+function EditButton({
+  ownerId,
+  dressId,
+}: {
+  ownerId: string;
+  dressId: string;
+}) {
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [checked, setChecked] = useState(false);
   const router = useRouter();
@@ -239,7 +271,9 @@ function EditButton({ ownerId, dressId }: { ownerId: string; dressId: string }) 
         setChecked(true);
       }
     });
-    return () => { ignore = true; };
+    return () => {
+      ignore = true;
+    };
   }, [ownerId]);
   if (!checked) return null; // Only render after check
   if (!isOwner) return null;

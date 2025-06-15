@@ -573,8 +573,12 @@ export default function NewDressPage() {
                         type="button"
                         onClick={() => {
                           setFormData((prev) => {
-                            const newImages = prev.images.filter((_, i) => i !== idx);
-                            const newPreviews = prev.imagePreviews.filter((_, i) => i !== idx);
+                            const newImages = prev.images.filter(
+                              (_, i) => i !== idx
+                            );
+                            const newPreviews = prev.imagePreviews.filter(
+                              (_, i) => i !== idx
+                            );
                             return {
                               ...prev,
                               images: newImages,

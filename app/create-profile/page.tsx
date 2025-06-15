@@ -85,7 +85,9 @@ export default function CreateProfilePage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded shadow">
-        <h2 className="text-2xl font-bold text-center mb-4">Create Your Profile</h2>
+        <h2 className="text-2xl font-bold text-center mb-4">
+          Create Your Profile
+        </h2>
         {error && <div className="text-red-600 mb-2">{error}</div>}
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
@@ -110,7 +112,9 @@ export default function CreateProfilePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Phone Number</label>
+            <label className="block text-sm font-medium mb-1">
+              Phone Number
+            </label>
             <input
               type="tel"
               name="phone"
@@ -121,7 +125,9 @@ export default function CreateProfilePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Profile Picture</label>
+            <label className="block text-sm font-medium mb-1">
+              Profile Picture
+            </label>
             <input
               type="file"
               name="avatarFile"
